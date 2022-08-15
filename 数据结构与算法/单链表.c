@@ -3,7 +3,6 @@
 
 typedef struct ElemType {
     int data;
-    char *name;
 }ElemType,*PElemType;
 
 typedef struct Lnode {
@@ -93,25 +92,16 @@ int GetElem_L(LinkList L, int i, ElemType e)
     return 0;
 }
 //按值查找，给出位置
-LinkList LocateElemByNum(LinkList L,  ElemType e)
+LinkList LocateElem(LinkList L,  ElemType e)
 {
     Lnode *p;
     p = L->next;
-    while(p && p->data.data!=e.data){
+    while(p && p->data!=e){
         p = p->next;
     }
     return p;
 }
-//按值名字，给出位置
-LinkList LocateElemByName(LinkList L,  ElemType e)
-{
-    Lnode *p;
-    p = L->next;
-    while(p && strcmp(p->data.name, e.name)){
-        p = p->next;
-    }
-    return p;
-}
+
 //在第i个节点前，插入值为e的新节点
 int ListInsert(LinkList L,  ElemType e, int i)
 {
