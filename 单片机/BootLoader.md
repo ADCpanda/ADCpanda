@@ -58,9 +58,102 @@ addr的bit0位为0为arm指令集，bit位为1，指令集为Thumb。
 
   = addr
 
-### 2.读addr =》sp
+### 2.读addr =>sp
 
-### 3.读（addr+4）=》pc
+### 3.读（addr+4）=>pc
 
 ## 链接
+
+使用散列文件，定位到RAM中，实际程序在flash里，程序里只能使用相对偏移，保证不会出错，避免使用 *p = func（）这种，绝对偏移，会找不到函数。
+
+### 为什么要拷贝？
+
+拷贝到RAM中，即可使用绝对偏移，因为可以找到文件
+
+```c
+Reset_Handler   PROC
+				EXPORT  Reset_Handler             [WEAK]
+                IMPORT  mymain
+				IMPORT  copy_myself
+				IMPORT |Image$$ER_IROM1$$Length|
+                adr r0, Reset_Handler  ; r0=0x0800C000
+				bic r0, r0, #0xff
+				
+				ldr r1, =__Vectors ; r1=0x20000000  得到_Vectors的链接地址
+				ldr r2, = |Image$$ER_IROM1$$Length|  ; LENGTH  
+				;LDR SP, =(0x20000000+0x10000)
+				BL copy_myself
+				ldr pc, =mymain
+
+                ENDP
+```
+
+```c
+r0 ：from     adr 得到当前指令Reset_Handler的当前地址0x0800C008
+              bic r0, r0, #0xff 把低8位清掉得到0x0800C000
+r1 : to       r1=0x20000000  得到_Vectors的链接地址
+r2 : len      |Image$$ER_IROM1$$Length|  得到长度
+
+
+void copy_myself(int *from, int *to, int len)
+{
+	// 从哪里到哪里, 多长 ?
+	int i;
+	for (i = 0; i < len/4+1; i++)
+	{
+		to[i] = from[i];
+	}
+}
+
+```
+
+这个时候程序还在flash上运行，还没有跳到ram中
+
+不要再使用相对跳转，不然会跳回flash，所以把BL mymain （相对），改成
+
+ldr pc， = mymain 从这里就跳到内存里了
+
+![第二个程序](C:\git_learn\learngit\单片机\pic\第二个程序.png)
+
+## bootloader copy app
+
+问题：1源
+
+​           2.目的地址
+
+​		   3.长度
+
+在APP中加入头部，头部里有：
+
+1.加载地址 ： copy to RAM
+
+2.入口地址：我需要跳转到哪里去运行你app第一条指令
+
+3.长度
+
+4.CRC
+
+bootloader要做的事
+
+1.读0x0800C000得到header
+
+2.解析头部
+
+3.读app.bin 存到RAM
+
+### 工具
+
+mkimage.exe                                 
+
+$./mkimage.exe -n "stm32f103_app" -a 0x20000000 -e 0x20000008 -d app.bin app_with_uboot_header.bin
+
+# 注意
+
+CPU只能在XIP（execute in place）设备执行，对于SPI的Flash不能执行
+
+需要注意大小端的问题
+
+制作出来的head是大端
+
+所以需要转换成小端
 
