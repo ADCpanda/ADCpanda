@@ -147,6 +147,49 @@ mkimage.exe
 
 $./mkimage.exe -n "stm32f103_app" -a 0x20000000 -e 0x20000008 -d app.bin app_with_uboot_header.bin
 
+使用这个结构体，这个头部结构体占64个字节
+
+```c
+typedef struct image_header {
+__be32			    ih_magic;	/* Image Header Magic Number: 镜像魔数, 0x27051956为
+                                    uimage的头部开始值 */
+	__be32			ih_hcrc;	/* Image Header CRC Checksum: 整个64字节头的crc校验码 */
+	__be32			ih_time;	/* Image Creation Timestamp: uImage的创建时间戳 */
+	__be32			ih_size;	/* Image Data Size: zImage镜像的大小 */
+	__be32			ih_load;	/* Data Load  Address: 内核加载地址 */
+	__be32			ih_ep;		/* Entry Point Address: zImage的入口位置 = lode + 64，也是
+                                   内核运行地址，“theKernel”指向该地址，说明这里藏着进入第一个
+                                   函数-解压函数 */
+	__be32			ih_dcrc;	/* Image Data CRC Checksum: 整个zImage的crc校验码 */
+	uint8_t		    ih_os;		/* Operating System: 操作系统代码 */
+	uint8_t		    ih_arch;	/* CPU architecture: 芯片类型,cpu架构 */
+	uint8_t		    ih_type;	/* Image Type: 镜像类型 */
+	uint8_t		    ih_comp;	/* Compression Type: 压缩类型 */
+	uint8_t		    ih_name[IH_NMLEN];	/* Image Name: 32字节的名字 */
+} image_header_t;
+```
+
+所以读到的程序位置在 new_pos = pos+sizeof(image_header_t);
+
+
+
+## 对于不支持修改Vector地址
+
+对于ST家的芯片支持修改硬件Vector地址，就修改
+
+不能修改的，需要跳转
+
+### 绝对跳转
+
+因为bootloader 重定位里可能用到的变量存在ram中，不巧刚好被app.bin破坏
+
+```c
+static struct vectors *new_vector  _attribute_((at(0x00030000)));
+
+```
+
+
+
 # 注意
 
 CPU只能在XIP（execute in place）设备执行，对于SPI的Flash不能执行
@@ -156,4 +199,3 @@ CPU只能在XIP（execute in place）设备执行，对于SPI的Flash不能执�
 制作出来的head是大端
 
 所以需要转换成小端
-
